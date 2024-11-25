@@ -1,0 +1,248 @@
+package cup;
+import java_cup.runtime.*;
+import java.io.*;
+
+parser code {:
+	public static void main(String args[]) throws Exception {
+
+ 		FileInputStream stream = new java.io.FileInputStream(args[0]);
+       	Reader reader = new java.io.InputStreamReader(stream);
+		try{
+
+			new parser(new Yylex(reader)).parse();
+		}
+		catch ( Exception e) {
+			System.out.println("¡¡ El análisis es INCORRECTO!!");
+			System.exit(1);
+		}
+		System.out.println("¡¡ El Análisis es Correcto !!");
+	
+		}
+:}
+
+
+terminal PUBLIC, CLASS, STATIC, VOID, INT, BOOLEAN, WHILE, FOR, DO, RETURN, MAIN, INTEGER_LIT, BOOL_LIT, IDENTIFIER, PLUS_SUB, MULT_DIV, OP_PARENTH, CL_PARENTH, OP_BRACKET, CL_BRACKET, SEMI, COMMA, ASSIGN, INCR_DECR, EQUALITY, COMPARISON, NOT, OR_AND;
+
+non terminal declaracion_clase, secuencia_metodos, estructura_metodo, tipo_funcion, lista_parametros_cabecera, secuencia_instrucciones, expresion_return, declaracion_variable, lista_parametros_llamada_metodo, argumentos_llamada_metodo, expresion_aritmetica, expresion_asignacion;
+non terminal llamada_metodo;
+non terminal bucle_for, expresiones_bucles, bucle_while, bucle_do_while, cabecera_bucle_for;
+non terminal expresion_booleana;
+non terminal expresion_asignacion_sin_declaracion;
+non terminal lista_expresiones_cuerpo;
+non terminal expresion_asignacion_declaracion; 
+non terminal identificador_o_llamada_metodo;
+non terminal expresion_not;
+
+
+// Precedencia para la generación del árbol sintáctico en las expresiones aritméticas. 
+precedence left PLUS_SUB;
+precedence left MULT_DIV;
+precedence left EQUALITY;
+precedence left OR_AND;
+ 
+/*
+	Se encarga de la declaración de la clase Java del sublenguaje
+*/
+declaracion_clase ::= PUBLIC CLASS IDENTIFIER OP_BRACKET CL_BRACKET
+					| PUBLIC CLASS IDENTIFIER OP_BRACKET secuencia_metodos CL_BRACKET
+					;
+/* 
+	Se refiere a los métodos que están dentro de la definición de la clase. En este caso puede haber
+	varios varios métodos y sigue la estrucutura de bloque PUBLIC STATIC tipo_variable IDENTIFIER
+*/ 
+secuencia_metodos ::= secuencia_metodos estructura_metodo
+				| estructura_metodo
+				;
+
+/* 
+	 Reconoce el lenguaje que tiene la estrucutua de una funcion, vease empieza por public static (tipo) identificador numero_parametros (Opcional), el cuerpo y el return (a parte de los brackets)
+*/
+estructura_metodo ::= PUBLIC STATIC tipo_funcion IDENTIFIER OP_PARENTH lista_parametros_cabecera CL_PARENTH OP_BRACKET secuencia_instrucciones CL_BRACKET
+					| PUBLIC STATIC tipo_funcion IDENTIFIER OP_PARENTH CL_PARENTH OP_BRACKET secuencia_instrucciones CL_BRACKET
+					| PUBLIC STATIC tipo_funcion IDENTIFIER OP_PARENTH lista_parametros_cabecera CL_PARENTH OP_BRACKET CL_BRACKET
+					| PUBLIC STATIC tipo_funcion IDENTIFIER OP_PARENTH CL_PARENTH OP_BRACKET CL_BRACKET
+					| PUBLIC STATIC VOID MAIN OP_PARENTH CL_PARENTH OP_BRACKET CL_BRACKET
+					| PUBLIC STATIC VOID MAIN OP_PARENTH CL_PARENTH OP_BRACKET secuencia_instrucciones CL_BRACKET
+					;
+										
+/*
+Reconoce el lenguaje de los tipos de datos que pueden ser los métodos
+*/
+tipo_funcion ::=  BOOLEAN 
+				| INT 
+				| VOID;
+
+/*
+Reconoce la expresion return. Empieza por RETURN y puede o no estar acompañado por un return
+*/
+
+expresion_return ::=  RETURN 
+					| RETURN expresion_booleana 
+					| RETURN expresion_aritmetica 
+					;
+
+// Reconoce el lenguaje para los parámetros de la cabacera de un método
+lista_parametros_cabecera ::= lista_parametros_cabecera COMMA declaracion_variable 
+ 							| declaracion_variable
+							;
+/*
+	Declaracion de las variables. Reconoce int a o boolean b
+*/
+
+declaracion_variable ::= BOOLEAN IDENTIFIER
+						| INT IDENTIFIER
+						;
+
+/*
+	Corresponde con la llamada de un método como tal. Ej (calculaValor(Valor))
+*/
+llamada_metodo ::= IDENTIFIER OP_PARENTH lista_parametros_llamada_metodo CL_PARENTH // El método tiene parámetros
+                | IDENTIFIER OP_PARENTH CL_PARENTH // El método no tiene parámetros. Por ejemplos: met()
+				;
+
+/*
+	Reconoce el lenguaje que hace referencia a los argumentos que tiene la llamada a un método
+*/
+lista_parametros_llamada_metodo ::= lista_parametros_llamada_metodo COMMA argumentos_llamada_metodo 
+								| argumentos_llamada_metodo
+								;
+
+/* 
+	Los no terminales para un argumento de llamada a metodo. Puede ser una variable, otra llamada anidada a métodos o el tipo de dato
+*/ 				
+argumentos_llamada_metodo ::= expresion_aritmetica
+							| expresion_booleana
+							| expresion_asignacion_sin_declaracion
+							;
+/*
+	Representa el lenguaje que admite todas las secuecnia de expresiones que estan dentro de un cuerpo
+*/
+secuencia_instrucciones ::= secuencia_instrucciones lista_expresiones_cuerpo 
+					| lista_expresiones_cuerpo
+					;
+/*
+	Son aquellas expresiones que son admitidas dentro de un método o un bucle
+*/
+lista_expresiones_cuerpo ::= INT IDENTIFIER SEMI // Definicion de integers sin asignacion 
+						 | BOOLEAN IDENTIFIER SEMI // Definicion de booleans sin asignacion
+						 | IDENTIFIER INCR_DECR SEMI
+	 					 | expresion_asignacion SEMI // Todo tipo de asignaciones
+						 | expresion_return SEMI // Expresión return de una variable
+						 | expresiones_bucles
+						 ; 
+
+/*
+	Expresion no terminal que agrupa todos los tipos de bucles
+*/
+expresiones_bucles ::= bucle_while
+					| bucle_for
+					| bucle_do_while
+					;
+
+/*
+	Reconoce todo tipo de asignaciones posibles
+*/ 
+expresion_asignacion ::= expresion_asignacion_sin_declaracion
+					   | expresion_asignacion_declaracion
+					   ;
+/* 
+	Reconoce las asignaciones que no tienen declaración de 
+*/ 
+expresion_asignacion_sin_declaracion ::= IDENTIFIER ASSIGN expresion_booleana // Reconoce esto: a = true
+									| IDENTIFIER ASSIGN expresion_aritmetica // Reconoce esto: a = 1 + 2  
+									;
+
+/*
+	Lenguaje para recononcer las asignaciones que tienen declaración previa. En este caso, sí se diferencia el tipo de dato
+*/ 
+expresion_asignacion_declaracion ::=  BOOLEAN IDENTIFIER ASSIGN expresion_booleana
+									| BOOLEAN IDENTIFIER ASSIGN identificador_o_llamada_metodo
+									| INT IDENTIFIER ASSIGN expresion_aritmetica
+									;
+/*
+	Expresiones que admiten not
+*/
+expresion_not ::= identificador_o_llamada_metodo
+				| OP_PARENTH identificador_o_llamada_metodo OR_AND identificador_o_llamada_metodo CL_PARENTH
+				| OP_PARENTH identificador_o_llamada_metodo CL_PARENTH
+				| OP_PARENTH expresion_booleana CL_PARENTH
+				| BOOL_LIT
+				;
+/*
+ Es la expresión booleana
+*/
+expresion_booleana ::= BOOL_LIT // true o false
+					| expresion_aritmetica COMPARISON expresion_aritmetica // a <= 2
+					| expresion_aritmetica EQUALITY expresion_aritmetica // a != 2
+					| expresion_booleana EQUALITY expresion_booleana // true != false
+					| identificador_o_llamada_metodo OR_AND identificador_o_llamada_metodo // Caso considerado
+					| OP_PARENTH expresion_booleana CL_PARENTH // (true)
+					| expresion_booleana OR_AND expresion_booleana // true || false
+					| NOT expresion_not // !true	  						
+					;
+
+/*
+	Reconoce si es una llamada o un método
+*/
+identificador_o_llamada_metodo ::= IDENTIFIER
+		  						| llamada_metodo
+		  						;
+/*
+	Se encarga de llevar a cabo las expresiones aritméticas
+*/
+expresion_aritmetica ::= expresion_aritmetica PLUS_SUB expresion_aritmetica  // A + 2
+						| expresion_aritmetica MULT_DIV expresion_aritmetica // B - 2
+						| OP_PARENTH expresion_aritmetica CL_PARENTH // Se admite paréntesis
+                        | INTEGER_LIT // Reconoce integers
+						| IDENTIFIER INCR_DECR
+						| identificador_o_llamada_metodo
+						;
+
+/*
+	Lenguaje bucle for para la cabecera
+*/
+bucle_for ::= FOR OP_PARENTH cabecera_bucle_for CL_PARENTH OP_BRACKET secuencia_instrucciones CL_BRACKET
+			| FOR OP_PARENTH cabecera_bucle_for CL_PARENTH OP_BRACKET CL_BRACKET // Bucle for vacío
+			;
+
+/*
+	Lenguaje que reconoce el bucle do while
+*/
+bucle_do_while ::= DO OP_BRACKET secuencia_instrucciones CL_BRACKET WHILE OP_PARENTH expresion_booleana CL_PARENTH SEMI
+				| DO OP_BRACKET secuencia_instrucciones CL_BRACKET  WHILE OP_PARENTH identificador_o_llamada_metodo CL_PARENTH SEMI
+				| DO OP_BRACKET CL_BRACKET WHILE OP_PARENTH identificador_o_llamada_metodo CL_PARENTH SEMI
+				| DO OP_BRACKET CL_BRACKET WHILE OP_PARENTH expresion_booleana CL_PARENTH SEMI // Bucle do while
+				;
+/*
+	Reconoce lenguaje del bucle while
+*/
+bucle_while ::= WHILE OP_PARENTH expresion_booleana CL_PARENTH OP_BRACKET secuencia_instrucciones CL_BRACKET
+			| WHILE OP_PARENTH identificador_o_llamada_metodo CL_PARENTH OP_BRACKET secuencia_instrucciones CL_BRACKET //Identificador o llamada a método
+			| WHILE OP_PARENTH identificador_o_llamada_metodo CL_PARENTH OP_BRACKET CL_BRACKET //Identificador o llamada a método
+			| WHILE OP_PARENTH expresion_booleana CL_PARENTH OP_BRACKET CL_BRACKET // Cuerpo vacío
+			;
+
+/* 
+	Reconoce lenguaje de la cabacera del bucle for. Se contemplan todas las expresiones
+*/
+cabecera_bucle_for ::= expresion_asignacion_declaracion SEMI expresion_booleana SEMI expresion_asignacion_sin_declaracion // Todas las partes de la cabecera
+					| expresion_asignacion_declaracion SEMI identificador_o_llamada_metodo SEMI expresion_asignacion_sin_declaracion
+					| expresion_asignacion_declaracion SEMI expresion_booleana SEMI IDENTIFIER INCR_DECR
+					| expresion_asignacion_declaracion SEMI identificador_o_llamada_metodo SEMI IDENTIFIER INCR_DECR
+					| expresion_asignacion_declaracion SEMI SEMI // Solo la primera asignación
+					| SEMI expresion_booleana SEMI // Solo expresion booleana
+					| SEMI identificador_o_llamada_metodo SEMI
+					| SEMI SEMI expresion_asignacion_sin_declaracion // Admite cuando las dos primeras partes son solo punto y coma
+					| SEMI SEMI IDENTIFIER INCR_DECR
+					| SEMI SEMI // No hay ningún tipo expresión entre medias
+					| expresion_asignacion_declaracion SEMI expresion_booleana SEMI // Primera asignación y expresion booleana
+					| expresion_asignacion_declaracion SEMI identificador_o_llamada_metodo SEMI
+					| expresion_asignacion_declaracion SEMI SEMI expresion_asignacion_sin_declaracion // Dos asignaciones
+					| expresion_asignacion_declaracion SEMI SEMI IDENTIFIER INCR_DECR
+					| SEMI expresion_booleana SEMI expresion_asignacion_sin_declaracion // Expresión booleana y última expresióN sin declaracion
+					| SEMI expresion_booleana SEMI IDENTIFIER INCR_DECR
+					| SEMI identificador_o_llamada_metodo SEMI expresion_asignacion_sin_declaracion 
+					| SEMI identificador_o_llamada_metodo SEMI IDENTIFIER INCR_DECR 
+					;
+
+
